@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Godown Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --b50:#eff6ff;--b100:#dbeafe;--b200:#bfdbfe;--b300:#93c5fd;
+  --b400:#60a5fa;--b500:#3b82f6;--b600:#2563eb;--b700:#1d4ed8;
+  --b800:#1e3a5f;--b900:#0f2440;
+  --w:#fff;--g50:#f8fafc;--g200:#e2e8f0;--g300:#cbd5e1;--g400:#94a3b8;
+  --tx:#1e3a5f;--txL:#64748b;--txM:#94a3b8;
+  --r:16px;--rs:10px;
+  --sh:0 1px 3px rgba(15,36,64,.04),0 4px 12px rgba(15,36,64,.03);
+  --shH:0 4px 20px rgba(15,36,64,.08),0 1px 4px rgba(15,36,64,.04);
+}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:#f0f4f8;color:var(--tx);min-height:100vh;-webkit-tap-highlight-color:transparent}
+body::before{content:'';position:fixed;top:0;left:0;right:0;height:300px;background:linear-gradient(180deg,#dbeafe 0%,#f0f4f8 100%);z-index:-1;pointer-events:none}
+button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inherit}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--b300);border-radius:3px}
+
+.hdr{background:linear-gradient(135deg,var(--b900) 0%,#1a3a6b 50%,var(--b700) 100%);padding:22px 20px;color:#fff;position:sticky;top:0;z-index:100;box-shadow:0 4px 30px rgba(15,36,64,.3)}
+.hdr::after{content:'';position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg width='40' height='40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23fff' fill-opacity='.03'%3E%3Cpath d='M20 0L40 20 20 40 0 20z'/%3E%3C/g%3E%3C/svg%3E");pointer-events:none}
+.hdr-in{max-width:860px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;position:relative;z-index:1}
+.logo{display:flex;align-items:center;gap:12px}
+.logo-i{width:46px;height:46px;background:rgba(255,255,255,.1);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(8px);box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.logo h1{font-size:22px;font-weight:900;letter-spacing:-.5px;text-shadow:0 1px 2px rgba(0,0,0,.1)}
+.logo p{font-size:11px;opacity:.5;margin-top:2px;letter-spacing:.5px;text-transform:uppercase;font-weight:500}
+/* Sync indicator */
+.sync{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:600;padding:4px 10px;border-radius:8px;margin-left:8px}
+.sync.on{background:rgba(34,197,94,.15);color:#22c55e}.sync.off{background:rgba(239,68,68,.15);color:#ef4444}.sync.load{background:rgba(250,204,21,.15);color:#facc15}
+
+.btn{padding:10px 20px;border-radius:var(--rs);border:none;font-weight:600;font-size:14px;display:inline-flex;align-items:center;gap:6px;transition:all .25s;white-space:nowrap;position:relative;overflow:hidden}
+.btn::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.12) 0%,transparent 100%);pointer-events:none;opacity:0;transition:opacity .2s}
+.btn:hover::after{opacity:1}
+.btn:active{transform:scale(.97)}
+.btn-w{background:#fff;color:var(--b700);box-shadow:0 2px 8px rgba(0,0,0,.1)}.btn-w:hover{box-shadow:0 4px 16px rgba(0,0,0,.12)}
+.btn-f{background:linear-gradient(135deg,var(--b500),var(--b600));color:#fff;box-shadow:0 2px 8px rgba(37,99,235,.3)}.btn-f:hover{box-shadow:0 4px 16px rgba(37,99,235,.4)}.btn-f:disabled{background:var(--g300);box-shadow:none;cursor:default}
+.btn-d{background:linear-gradient(135deg,var(--b800),var(--b900));color:#fff;box-shadow:0 2px 8px rgba(15,36,64,.3)}.btn-d:hover{box-shadow:0 4px 16px rgba(15,36,64,.4)}
+.btn-o{background:transparent;border:1.5px solid var(--b300);color:var(--b600)}.btn-o:hover{background:var(--b50);border-color:var(--b400)}
+.btn-del{background:transparent;border:1.5px solid var(--g200);color:var(--g400)}.btn-del:hover{background:#fef2f2;color:#dc2626;border-color:#fca5a5}
+.btn-red{background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;box-shadow:0 2px 8px rgba(220,38,38,.3)}
+.btn-sm{padding:8px 16px;font-size:12px;border-radius:8px}
+.btn-grp{display:flex;gap:8px;flex-wrap:wrap}
+
+.wrap{max-width:860px;margin:0 auto;padding:20px 16px 80px}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px}
+.st{background:#fff;border-radius:var(--r);padding:20px 18px;display:flex;align-items:center;gap:14px;border:1px solid rgba(219,234,254,.6);box-shadow:var(--sh);transition:all .25s;position:relative;overflow:hidden}
+.st::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--r) var(--r) 0 0}
+.st:nth-child(1)::before{background:linear-gradient(90deg,var(--b400),var(--b500))}
+.st:nth-child(2)::before{background:linear-gradient(90deg,var(--b500),var(--b600))}
+.st:nth-child(3)::before{background:linear-gradient(90deg,var(--b600),var(--b700))}
+.st:nth-child(4)::before{background:linear-gradient(90deg,var(--b700),var(--b800))}
+.st:hover{transform:translateY(-2px);box-shadow:var(--shH)}
+.st-i{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:21px;flex-shrink:0}
+.st-i.a{background:linear-gradient(135deg,var(--b50),var(--b100));color:var(--b600)}
+.st-i.b{background:linear-gradient(135deg,var(--b100),var(--b200));color:var(--b700)}
+.st-i.c{background:linear-gradient(135deg,var(--b800),var(--b900));color:#fff}
+.st-v{font-size:28px;font-weight:900;color:var(--b800);line-height:1;letter-spacing:-1px}
+.st-l{font-size:10px;color:var(--txM);margin-top:4px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+
+.tabs{display:flex;gap:4px;background:#fff;border-radius:14px;padding:5px;margin-bottom:16px;box-shadow:var(--sh);border:1px solid rgba(219,234,254,.5)}
+.tab{flex:1;padding:12px 0;border-radius:11px;border:none;background:transparent;color:var(--txM);font-weight:600;font-size:13px;transition:all .3s}
+.tab.on{background:linear-gradient(135deg,var(--b600),var(--b700));color:#fff;box-shadow:0 2px 8px rgba(37,99,235,.25)}
+.tab:not(.on):hover{background:var(--b50);color:var(--b600)}
+
+.tbar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.srch{flex:1;min-width:200px;position:relative}
+.srch input{width:100%;padding:11px 14px 11px 40px;border-radius:12px;border:1.5px solid var(--b200);font-size:14px;outline:none;background:#fff;transition:all .25s;box-shadow:var(--sh)}
+.srch input:focus{border-color:var(--b500);box-shadow:0 0 0 3px rgba(59,130,246,.12)}
+.srch .ic{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:15px;opacity:.35}
+.fsel{padding:11px 14px;border-radius:12px;border:1.5px solid var(--b200);font-size:13px;background:#fff;color:var(--tx);font-weight:500;cursor:pointer;box-shadow:var(--sh);outline:none}
+
+.pl{display:flex;flex-direction:column;gap:10px}
+.pc{background:#fff;border-radius:var(--r);padding:18px 20px;border:1px solid rgba(219,234,254,.5);cursor:pointer;transition:all .3s;box-shadow:var(--sh);position:relative;overflow:hidden}
+.pc::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;border-radius:var(--r) 0 0 var(--r)}
+.pc.s-received::before{background:var(--b400)}
+.pc.s-barcode::before{background:var(--b600)}
+.pc.s-partial::before{background:linear-gradient(180deg,var(--b500),var(--b800))}
+.pc.s-done::before{background:var(--b800)}
+.pc:hover{transform:translateY(-2px);box-shadow:var(--shH);border-color:var(--b300)}
+.pc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.pc-info{flex:1;min-width:160px}
+.pc-bill{font-weight:800;font-size:15px;color:var(--b800)}
+.pc-sup{font-size:13px;color:var(--txL);font-weight:500;margin-top:3px}
+.pc-meta{font-size:12px;color:var(--txM);margin-top:5px;line-height:1.5}
+.pc-dt{text-align:right;flex-shrink:0}
+.pc-dt .d{font-size:12px;color:var(--txM);font-weight:500}
+.pc-dt .t{font-size:11px;color:var(--g300)}
+.pc-act{margin-top:12px;border-top:1px solid var(--b50);padding-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+.qbar{margin-top:10px;display:flex;align-items:center;gap:10px;font-size:12px}
+.qbar-track{flex:1;height:7px;background:var(--b100);border-radius:4px;overflow:hidden}
+.qbar-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--b400),var(--b600));transition:width .5s;position:relative}
+.qbar-fill::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.35) 0%,transparent 100%);border-radius:4px}
+.qbar-txt{color:var(--txL);font-weight:700;white-space:nowrap}
+.qbar-txt span{color:var(--b600)}
+
+.pcs-row{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.pcs-chip{font-size:11px;font-weight:700;padding:4px 12px;border-radius:8px;display:inline-flex;align-items:center;gap:4px}
+.pcs-shop{background:linear-gradient(135deg,var(--b100),var(--b50));color:var(--b700);border:1px solid var(--b200)}
+.pcs-godown{background:var(--g50);color:var(--b800);border:1px solid var(--b200)}
+.pcs-done{background:linear-gradient(135deg,var(--b800),var(--b900));color:#fff}
+
+.bdg{display:inline-flex;align-items:center;gap:5px;padding:5px 14px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap}
+.bdg-received{background:var(--b100);color:var(--b700);border:1px solid var(--b200)}
+.bdg-barcode{background:linear-gradient(135deg,var(--b100),var(--b200));color:var(--b800);border:1px solid var(--b300)}
+.bdg-partial{background:linear-gradient(135deg,#dbeafe,#bfdbfe);color:#1e40af;border:1px solid var(--b300)}
+.bdg-done{background:linear-gradient(135deg,var(--b800),var(--b900));color:#fff;border:1px solid var(--b700)}
+
+.empty{text-align:center;padding:70px 20px;background:#fff;border-radius:var(--r);border:1px solid rgba(219,234,254,.5);box-shadow:var(--sh)}
+.empty-ic{font-size:56px;margin-bottom:14px}.empty-tx{color:var(--txM);font-weight:500;font-size:14px}
+
+.mo{position:fixed;inset:0;background:rgba(15,36,64,.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(6px);opacity:0;visibility:hidden;pointer-events:none;transition:all .3s}
+.mo.open{opacity:1;visibility:visible;pointer-events:auto}
+.md{background:#fff;border-radius:22px;width:100%;max-width:540px;max-height:90vh;overflow:auto;box-shadow:0 24px 80px rgba(15,36,64,.25);transform:translateY(24px) scale(.96);transition:transform .3s cubic-bezier(.4,0,.2,1)}
+.mo.open .md{transform:translateY(0) scale(1)}
+.md-h{padding:22px 24px;border-bottom:1px solid var(--b50);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#fff;border-radius:22px 22px 0 0;z-index:1}
+.md-h h3{font-size:18px;font-weight:800;color:var(--b800)}
+.md-x{width:36px;height:36px;border-radius:12px;border:none;background:var(--b50);color:var(--b600);font-size:18px;display:flex;align-items:center;justify-content:center;transition:all .25s}
+.md-x:hover{background:var(--b100);transform:rotate(90deg)}
+.md-b{padding:22px 24px}
+
+.fld{margin-bottom:16px}
+.fld label{display:block;font-size:13px;font-weight:600;color:var(--txL);margin-bottom:6px}
+.fld .rq{color:#dc2626}
+.fld input,.fld textarea,.fld select{width:100%;padding:11px 14px;border-radius:var(--rs);border:1.5px solid var(--b200);font-size:14px;outline:none;background:var(--g50);transition:all .25s}
+.fld input:focus,.fld textarea:focus,.fld select:focus{border-color:var(--b500);background:#fff;box-shadow:0 0 0 3px rgba(59,130,246,.1)}
+.fld textarea{resize:vertical}
+.fld select{cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px}
+
+.dg{display:grid;grid-template-columns:1fr 1fr;gap:14px;background:linear-gradient(135deg,var(--b50),#f0f7ff);border-radius:14px;padding:18px;margin-bottom:20px;border:1px solid var(--b100)}
+.dg-l{font-size:10px;color:var(--txM);font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.dg-v{font-size:14px;font-weight:700;color:var(--b800);margin-top:3px}
+
+.tl{margin-bottom:20px}
+.tl h4{font-size:13px;font-weight:800;color:var(--b800);margin-bottom:12px}
+.tl-tr{position:relative;padding-left:24px}
+.tl-ln{position:absolute;left:6px;top:4px;bottom:4px;width:2px;background:linear-gradient(180deg,var(--b400),var(--b200));border-radius:2px}
+.tl-it{position:relative;margin-bottom:14px;padding-left:18px}
+.tl-dt{position:absolute;left:-22px;top:4px;width:12px;height:12px;border-radius:50%;border:2.5px solid #fff;box-shadow:0 0 0 1.5px var(--b300)}
+.tl-dt.now{background:var(--b500);box-shadow:0 0 0 1.5px var(--b500),0 0 0 5px rgba(59,130,246,.15)}
+.tl-dt.old{background:var(--b200)}
+.tl-a{font-size:13px;font-weight:600;color:var(--b800)}
+.tl-t{font-size:11px;color:var(--txM);margin-top:2px}
+.tl-staff{font-size:11px;color:var(--b600);font-weight:600;margin-top:1px}
+
+.dsp-avail{font-size:12px;color:var(--txL);margin-top:8px;font-weight:500}
+.dsp-avail span{color:var(--b600);font-weight:700;font-size:14px}
+
+.prog{display:flex;align-items:center;padding:14px 16px;background:linear-gradient(135deg,var(--b50),#f0f7ff);border-radius:12px;border:1px solid var(--b100);margin-bottom:6px}
+.prog-s{display:flex;align-items:center}
+.prog-d{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;border:2.5px solid var(--b200);color:var(--b300);background:#fff;flex-shrink:0}
+.prog-d.dn{background:linear-gradient(135deg,var(--b500),var(--b600));color:#fff;border-color:var(--b500);box-shadow:0 2px 6px rgba(59,130,246,.2)}
+.prog-d.cr{background:linear-gradient(135deg,var(--b400),var(--b500));color:#fff;border-color:var(--b400);box-shadow:0 0 0 4px rgba(59,130,246,.15)}
+.prog-b{width:40px;height:3px;background:var(--b200);flex-shrink:0;border-radius:2px}
+.prog-b.dn{background:linear-gradient(90deg,var(--b400),var(--b500))}
+.prog-lbl{display:flex;justify-content:space-between;padding:0 6px;margin-top:6px;margin-bottom:10px}
+.prog-lbl span{font-size:9px;font-weight:700;color:var(--txM);text-transform:uppercase;letter-spacing:.3px;text-align:center;flex:1}
+.prog-lbl span.act{color:var(--b600)}
+
+.staff-sec{margin-bottom:20px}
+.staff-sec h4{font-size:13px;font-weight:800;color:var(--b800);margin-bottom:10px}
+.staff-card{background:linear-gradient(135deg,var(--b50),#f0f7ff);border:1px solid var(--b100);border-radius:12px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
+.staff-avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--b500),var(--b600));color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;flex-shrink:0;box-shadow:0 2px 6px rgba(37,99,235,.2)}
+.staff-info{flex:1}
+.staff-name{font-size:14px;font-weight:700;color:var(--b800)}
+.staff-tasks{font-size:11px;color:var(--txL);margin-top:2px;line-height:1.5}
+.staff-tasks span{background:var(--b100);color:var(--b700);padding:2px 8px;border-radius:6px;font-weight:600;margin-right:4px;display:inline-block;margin-top:2px}
+
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:linear-gradient(135deg,var(--b800),var(--b900));color:#fff;padding:14px 28px;border-radius:14px;font-size:14px;font-weight:600;z-index:2000;box-shadow:0 8px 30px rgba(15,36,64,.35);transition:transform .4s cubic-bezier(.175,.885,.32,1.275);pointer-events:none;white-space:nowrap;max-width:90vw;border:1px solid rgba(255,255,255,.08)}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* Loading overlay */
+.loading{position:fixed;inset:0;background:#f0f4f8;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity .4s}
+.loading.hide{opacity:0;pointer-events:none}
+.loading-spin{width:40px;height:40px;border:3px solid var(--b200);border-top-color:var(--b500);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-txt{color:var(--txL);font-weight:600;font-size:14px}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.pl .pc{animation:fadeUp .35s both}
+.pl .pc:nth-child(1){animation-delay:.02s}.pl .pc:nth-child(2){animation-delay:.05s}
+.pl .pc:nth-child(3){animation-delay:.08s}.pl .pc:nth-child(4){animation-delay:.11s}
+.pl .pc:nth-child(n+5){animation-delay:.14s}
+
+@media(max-width:480px){
+  .hdr{padding:16px 14px}.logo-i{width:40px;height:40px;font-size:20px}.logo h1{font-size:18px}
+  .btn{padding:9px 16px;font-size:13px}
+  .stats{grid-template-columns:1fr 1fr;gap:8px}.st{padding:14px 12px;gap:10px}.st-v{font-size:24px}.st-i{width:42px;height:42px;font-size:18px}
+  .dg{grid-template-columns:1fr}.prog-b{width:24px}.prog{padding:10px 12px}.prog-d{width:26px;height:26px;font-size:11px}
+  .pc{padding:14px 16px}.staff-card{padding:10px 12px;gap:10px}.staff-avatar{width:34px;height:34px;font-size:12px}
+}
+</style>
+</head>
+<body>
+<!-- Loading Screen -->
+<div class="loading" id="loadScreen"><div class="loading-spin"></div><div class="loading-txt">🏭 Connecting to Godown...</div></div>
+
+<div class="toast" id="toast"></div>
+
+<div class="hdr"><div class="hdr-in">
+  <div class="logo"><div class="logo-i">🏭</div><div><h1>Godown Manager</h1><p>Parcel Tracking & Dispatch</p></div><span class="sync load" id="syncBadge">⏳ Connecting</span></div>
+  <button class="btn btn-w" onclick="openAdd()">+ New Parcel</button>
+</div></div>
+
+<div class="wrap">
+  <div class="stats" id="statsArea"></div>
+  <div class="tabs">
+    <button class="tab on" id="tabG" onclick="setTab('godown')">🏭 Godown (<span id="cG">0</span>)</button>
+    <button class="tab" id="tabH" onclick="setTab('dispatched')">🚚 Dispatched (<span id="cH">0</span>)</button>
+  </div>
+  <div class="tbar">
+    <div class="srch"><span class="ic">🔍</span><input type="text" id="sIn" placeholder="Search bill no, supplier, items..." oninput="renderList()"></div>
+    <select class="fsel" id="fSel" onchange="renderList()">
+      <option value="all">All Status</option>
+      <option value="received">📦 Without Barcode</option>
+      <option value="barcode_done">✅ Barcode Done</option>
+      <option value="partial">🔄 Partial Dispatch</option>
+    </select>
+  </div>
+  <div id="pList"></div>
+</div>
+
+<!-- Add Modal -->
+<div class="mo" id="mAdd" onclick="if(event.target===this)cMo('mAdd')"><div class="md">
+  <div class="md-h"><h3>📦 Receive New Parcel</h3><button class="md-x" onclick="cMo('mAdd')">✕</button></div>
+  <div class="md-b">
+    <div class="fld"><label>Received By <span class="rq">*</span></label><select id="fStaff"><option value="">-- Staff Select Karo --</option></select></div>
+    <div class="fld"><label>Bill Number <span class="rq">*</span></label><input type="text" id="fBill" placeholder="e.g. INV-2024-001"></div>
+    <div class="fld"><label>Supplier / Party Name <span class="rq">*</span></label><input type="text" id="fSup" placeholder="e.g. Sharma Textiles"></div>
+    <div class="fld"><label>Date <span class="rq">*</span></label><input type="date" id="fDate"></div>
+    <div class="fld"><label>Items Description</label><textarea id="fItems" rows="2" placeholder="e.g. T-Shirts, Jeans, Kurta"></textarea></div>
+    <div class="fld"><label>Total Pieces <span class="rq">*</span></label><input type="number" id="fQty" placeholder="e.g. 120" min="1"></div>
+    <div class="fld"><label>Notes</label><textarea id="fNotes" rows="2" placeholder="Any extra details..."></textarea></div>
+    <div class="btn-grp" style="margin-top:8px">
+      <button class="btn btn-o" onclick="cMo('mAdd')">Cancel</button>
+      <button class="btn btn-f" onclick="addParcel()">📦 Receive Parcel</button>
+    </div>
+  </div>
+</div></div>
+
+<!-- View Modal -->
+<div class="mo" id="mView" onclick="if(event.target===this)cMo('mView')"><div class="md"><div class="md-h"><h3 id="vTitle">Details</h3><button class="md-x" onclick="cMo('mView')">✕</button></div><div class="md-b" id="vBody"></div></div></div>
+
+<!-- Barcode Modal -->
+<div class="mo" id="mBc" onclick="if(event.target===this)cMo('mBc')"><div class="md" style="max-width:440px">
+  <div class="md-h"><h3>✅ Barcode Done</h3><button class="md-x" onclick="cMo('mBc')">✕</button></div>
+  <div class="md-b">
+    <div id="bcInfo"></div>
+    <div class="fld" style="margin-top:16px"><label>Barcoding kisne ki? <span class="rq">*</span></label><select id="bcStaff"><option value="">-- Staff Select Karo --</option></select></div>
+    <div class="btn-grp" style="margin-top:18px"><button class="btn btn-o" onclick="cMo('mBc')">Cancel</button><button class="btn btn-f" onclick="doBarcode()">✅ Barcode Done</button></div>
+  </div>
+</div></div>
+
+<!-- Dispatch Modal -->
+<div class="mo" id="mDsp" onclick="if(event.target===this)cMo('mDsp')"><div class="md" style="max-width:440px">
+  <div class="md-h"><h3>🚚 Dispatch to Shop</h3><button class="md-x" onclick="cMo('mDsp')">✕</button></div>
+  <div class="md-b">
+    <div id="dspInfo"></div>
+    <div class="fld" style="margin-top:16px"><label>Dispatch kisne kiya? <span class="rq">*</span></label><select id="dspStaff"><option value="">-- Staff Select Karo --</option></select></div>
+    <div class="fld"><label>Kitne pieces dispatch karne hain? <span class="rq">*</span></label><input type="number" id="dspQty" min="1" placeholder="e.g. 50"><div class="dsp-avail" id="dspAvail"></div></div>
+    <div class="btn-grp" style="margin-top:18px"><button class="btn btn-o" onclick="cMo('mDsp')">Cancel</button><button class="btn btn-d" onclick="doDispatch()">🚚 Dispatch Karo</button></div>
+  </div>
+</div></div>
+
+<!-- Delete Confirm Modal -->
+<div class="mo" id="mConf" onclick="if(event.target===this)cMo('mConf')"><div class="md" style="max-width:420px">
+  <div class="md-h"><h3 id="cfTitle">Confirm</h3><button class="md-x" onclick="cMo('mConf')">✕</button></div>
+  <div class="md-b">
+    <p id="cfMsg" style="font-size:14px;color:var(--txL);line-height:1.6;margin-bottom:20px"></p>
+    <div class="btn-grp"><button class="btn btn-o" onclick="cMo('mConf')">Cancel</button><button class="btn btn-red" onclick="doDelete()">🗑 Haan, Delete Karo</button></div>
+  </div>
+</div></div>
+
+<script>
+// ══════════ FIREBASE INIT ══════════
+firebase.initializeApp({
+  apiKey:"AIzaSyAR3dV2sk1PenWOj2yfY2JY3xYEki2EYjU",
+  authDomain:"godown-tracker-47cf3.firebaseapp.com",
+  projectId:"godown-tracker-47cf3",
+  storageBucket:"godown-tracker-47cf3.firebasestorage.app",
+  messagingSenderId:"145752866115",
+  appId:"1:145752866115:web:eca6a53d119c3194f883f6"
+});
+var db=firebase.firestore();
+var COL='parcels';
+
+// ══════════ STATE ══════════
+var data=[],curTab='godown',pendingDel=null,bcId=null,dspId=null,moStack=[],toastT=null;
+var STAFF=['Suraj ji','Nandu ji','Ruddar ji'];
+
+// ══════════ HELPERS ══════════
+function fd(d){return new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}
+function ft(d){return new Date(d).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}
+function esc(s){var d=document.createElement('div');d.textContent=s||'';return d.innerHTML}
+function rem(p){return p.totalQty-p.dispatched}
+function initials(n){return n.split(' ')[0][0].toUpperCase()}
+
+function fillStaffSelect(id){
+  var sel=document.getElementById(id);
+  sel.innerHTML='<option value="">-- Staff Select Karo --</option>';
+  STAFF.forEach(function(s){sel.innerHTML+='<option value="'+s+'">'+s+'</option>'});
+}
+
+function toast(m){var e=document.getElementById('toast');e.textContent=m;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(function(){e.classList.remove('show')},2800)}
+
+function setSyncStatus(st){
+  var el=document.getElementById('syncBadge');
+  if(st==='on'){el.className='sync on';el.textContent='🟢 Live Sync'}
+  else if(st==='off'){el.className='sync off';el.textContent='🔴 Offline'}
+  else{el.className='sync load';el.textContent='⏳ Connecting'}
+}
+
+function oMo(id){document.getElementById(id).classList.add('open');if(moStack.indexOf(id)===-1)moStack.push(id);document.body.style.overflow='hidden'}
+function cMo(id){document.getElementById(id).classList.remove('open');moStack=moStack.filter(function(m){return m!==id});if(moStack.length===0)document.body.style.overflow=''}
+function cAll(){moStack.forEach(function(id){document.getElementById(id).classList.remove('open')});moStack=[];document.body.style.overflow=''}
+
+// ══════════ FIREBASE REALTIME LISTENER ══════════
+db.collection(COL).orderBy('receivedAt','desc').onSnapshot(function(snapshot){
+  data=[];
+  snapshot.forEach(function(doc){
+    var d=doc.data();d.id=doc.id;
+    if(typeof d.dispatched!=='number')d.dispatched=0;
+    if(!d.dispatches)d.dispatches=[];
+    if(!d.log)d.log=[];
+    data.push(d);
+  });
+  renderAll();
+  setSyncStatus('on');
+  // Hide loading screen
+  var ls=document.getElementById('loadScreen');
+  if(ls)ls.classList.add('hide');
+},function(err){
+  console.error('Firestore error:',err);
+  setSyncStatus('off');
+  toast('⚠️ Connection error — check internet');
+  var ls=document.getElementById('loadScreen');
+  if(ls)ls.classList.add('hide');
+});
+
+// ══════════ FIREBASE CRUD ══════════
+function fbAdd(parcel){
+  return db.collection(COL).add(parcel).catch(function(e){console.error(e);toast('⚠️ Save failed')});
+}
+function fbUpdate(id,fields){
+  return db.collection(COL).doc(id).update(fields).catch(function(e){console.error(e);toast('⚠️ Update failed')});
+}
+function fbDelete(id){
+  return db.collection(COL).doc(id).delete().catch(function(e){console.error(e);toast('⚠️ Delete failed')});
+}
+
+// ══════════ STATUS HELPERS ══════════
+function cardCls(p){if(rem(p)===0&&p.dispatched>0)return 's-done';if(p.dispatched>0)return 's-partial';if(p.status==='barcode_done')return 's-barcode';return 's-received'}
+
+function getBadge(p){
+  var d=p.dispatched,r=rem(p);
+  if(r===0&&d>0)return '<span class="bdg bdg-done">🚚 Fully Dispatched</span>';
+  if(d>0&&r>0)return '<span class="bdg bdg-partial">🔄 Partial ('+d+'/'+p.totalQty+')</span>';
+  if(p.status==='barcode_done')return '<span class="bdg bdg-barcode">✅ Barcode Done</span>';
+  return '<span class="bdg bdg-received">📦 Without Barcode</span>';
+}
+
+function pcsChips(p){if(p.dispatched===0)return '';var r=rem(p),h='<div class="pcs-row">';h+='<span class="pcs-chip pcs-shop">🚚 Shop: '+p.dispatched+' pcs</span>';h+=r>0?'<span class="pcs-chip pcs-godown">🏭 Godown: '+r+' pcs</span>':'<span class="pcs-chip pcs-done">✅ All dispatched</span>';return h+'</div>'}
+
+function qtyBar(p){if(p.dispatched===0)return '';var pct=Math.round((p.dispatched/p.totalQty)*100);return '<div class="qbar"><div class="qbar-track"><div class="qbar-fill" style="width:'+pct+'%"></div></div><div class="qbar-txt"><span>'+p.dispatched+'</span>/'+p.totalQty+' sent</div></div>'}
+
+function progBar(p){
+  var r=rem(p),step=r===0?3:(p.status==='barcode_done'?2:1),icons=['📦','✅','🚚'],labels=['Received','Barcode','Dispatch'];
+  var h='<div class="prog">';
+  for(var i=0;i<3;i++){if(i>0)h+='<div class="prog-b'+(i<step?' dn':'')+'"></div>';var c=i<step-1?'dn':(i===step-1?'cr':'');h+='<div class="prog-s"><div class="prog-d '+c+'">'+icons[i]+'</div></div>'}
+  h+='</div><div class="prog-lbl">';for(var j=0;j<3;j++)h+='<span'+(j<step?' class="act"':'')+'>'+labels[j]+'</span>';
+  return h+'</div>';
+}
+
+function staffSummary(p){
+  var activities={};
+  p.log.forEach(function(l){if(!l.staff)return;if(!activities[l.staff])activities[l.staff]=[];activities[l.staff].push(l.action)});
+  var names=Object.keys(activities);if(names.length===0)return '';
+  var h='<div class="staff-sec"><h4>👥 Staff Activity</h4>';
+  names.forEach(function(name){
+    h+='<div class="staff-card"><div class="staff-avatar">'+initials(name)+'</div><div class="staff-info"><div class="staff-name">'+esc(name)+'</div><div class="staff-tasks">';
+    activities[name].forEach(function(a){h+='<span>'+esc(a)+'</span>'});
+    h+='</div></div></div>';
+  });
+  return h+'</div>';
+}
+
+// ══════════ RENDER ══════════
+function renderAll(){renderStats();renderList();updCounts()}
+
+function renderStats(){
+  var inG=data.filter(function(p){return rem(p)>0}),totalPcs=inG.reduce(function(s,p){return s+rem(p)},0);
+  var ready=data.filter(function(p){return p.status==='barcode_done'&&rem(p)>0}).length;
+  var dispatched=data.filter(function(p){return p.dispatched>0}).length;
+  document.getElementById('statsArea').innerHTML=
+    '<div class="st"><div class="st-i a">📦</div><div><div class="st-v">'+inG.length+'</div><div class="st-l">Parcels in Godown</div></div></div>'
+   +'<div class="st"><div class="st-i a">🔢</div><div><div class="st-v">'+totalPcs+'</div><div class="st-l">Total Pcs Pending</div></div></div>'
+   +'<div class="st"><div class="st-i b">✅</div><div><div class="st-v">'+ready+'</div><div class="st-l">Ready to Dispatch</div></div></div>'
+   +'<div class="st"><div class="st-i c">🚚</div><div><div class="st-v">'+dispatched+'</div><div class="st-l">Dispatched Parcels</div></div></div>';
+}
+
+function updCounts(){
+  document.getElementById('cG').textContent=data.filter(function(p){return rem(p)>0}).length;
+  document.getElementById('cH').textContent=data.filter(function(p){return p.dispatched>0}).length;
+}
+
+function renderList(){
+  var q=document.getElementById('sIn').value.toLowerCase(),f=document.getElementById('fSel').value;
+  var list=curTab==='godown'?data.filter(function(p){return rem(p)>0}):data.filter(function(p){return p.dispatched>0});
+  if(q)list=list.filter(function(p){return p.billNo.toLowerCase().indexOf(q)!==-1||p.supplierName.toLowerCase().indexOf(q)!==-1||(p.items||'').toLowerCase().indexOf(q)!==-1});
+  if(curTab==='godown'&&f!=='all'){
+    if(f==='partial')list=list.filter(function(p){return p.dispatched>0});
+    else if(f==='received')list=list.filter(function(p){return p.status==='received'&&p.dispatched===0});
+    else if(f==='barcode_done')list=list.filter(function(p){return p.status==='barcode_done'&&p.dispatched===0});
+  }
+  var el=document.getElementById('pList');
+  if(list.length===0){
+    var noF=!q&&f==='all',msg=!noF?'Koi parcel nahi mila is search mein':(curTab==='godown'?'Godown mein koi parcel nahi hai':'Abhi tak koi parcel dispatch nahi hua');
+    el.innerHTML='<div class="empty"><div class="empty-ic">'+(curTab==='godown'?'📭':'📋')+'</div><div class="empty-tx">'+msg+'</div>'+(curTab==='godown'&&noF?'<div style="margin-top:16px"><button class="btn btn-f" onclick="openAdd()">+ Receive New Parcel</button></div>':'')+'</div>';
+    return;
+  }
+  var h='<div class="pl">';
+  list.forEach(function(p){
+    var r=rem(p);
+    h+='<div class="pc '+cardCls(p)+'" onclick="openView(\''+p.id+'\')">';
+    h+='<div class="pc-top"><div class="pc-info">';
+    h+='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">';
+    h+='<span class="pc-bill">Bill #'+esc(p.billNo)+'</span>'+getBadge(p)+'</div>';
+    h+='<div class="pc-sup">'+esc(p.supplierName)+'</div>';
+    h+='<div class="pc-meta">';if(p.items)h+=esc(p.items)+' · ';h+='Total: '+p.totalQty+' pcs</div>';
+    h+=pcsChips(p);
+    h+='</div><div class="pc-dt"><div class="d">'+fd(p.receivedAt)+'</div><div class="t">'+ft(p.receivedAt)+'</div></div></div>';
+    h+=qtyBar(p);
+    if(r>0&&curTab==='godown'){
+      h+='<div class="pc-act">';
+      if(p.status==='received')h+='<button class="btn btn-sm btn-f" onclick="event.stopPropagation();openBc(\''+p.id+'\')">✅ Barcode Done</button>';
+      if(p.status==='barcode_done')h+='<button class="btn btn-sm btn-d" onclick="event.stopPropagation();openDsp(\''+p.id+'\')">🚚 Dispatch</button>';
+      h+='</div>';
+    }
+    h+='</div>';
+  });
+  el.innerHTML=h+'</div>';
+}
+
+function setTab(t){curTab=t;document.getElementById('tabG').className='tab'+(t==='godown'?' on':'');document.getElementById('tabH').className='tab'+(t==='dispatched'?' on':'');var fs=document.getElementById('fSel');if(t==='dispatched'){fs.style.display='none';fs.value='all'}else{fs.style.display=''}renderList()}
+
+// ══════════ ADD ══════════
+function openAdd(){document.getElementById('fDate').value=new Date().toISOString().slice(0,10);fillStaffSelect('fStaff');oMo('mAdd')}
+
+function addParcel(){
+  var staff=document.getElementById('fStaff').value,bill=document.getElementById('fBill').value.trim(),sup=document.getElementById('fSup').value.trim(),qty=document.getElementById('fQty').value;
+  if(!staff)return toast('⚠️ Staff select karo');
+  if(!bill){document.getElementById('fBill').focus();return toast('⚠️ Bill Number zaruri hai')}
+  if(!sup){document.getElementById('fSup').focus();return toast('⚠️ Supplier Name zaruri hai')}
+  if(!qty||Number(qty)<=0){document.getElementById('fQty').focus();return toast('⚠️ Total Pieces zaruri hai')}
+  var now=new Date().toISOString();
+  fbAdd({billNo:bill,supplierName:sup,date:document.getElementById('fDate').value,items:document.getElementById('fItems').value.trim(),totalQty:Number(qty),dispatched:0,notes:document.getElementById('fNotes').value.trim(),status:'received',receivedAt:now,receivedBy:staff,barcodeAt:null,barcodeBy:null,dispatches:[],log:[{action:'Parcel Received',time:now,note:qty+' pcs — Bill #'+bill,staff:staff}]});
+  ['fBill','fSup','fItems','fQty','fNotes'].forEach(function(id){document.getElementById(id).value=''});
+  document.getElementById('fStaff').value='';
+  cMo('mAdd');toast('✅ '+staff+' ne parcel receive kiya — '+qty+' pcs');
+}
+
+// ══════════ VIEW ══════════
+function openView(id){
+  var p=data.find(function(x){return x.id===id});if(!p)return;
+  document.getElementById('vTitle').textContent='Bill #'+p.billNo;
+  var r=rem(p),h='';
+  h+=progBar(p);
+  h+='<div style="margin-bottom:18px">'+getBadge(p)+'</div>';
+  h+='<div class="dg">';
+  h+='<div><div class="dg-l">Supplier</div><div class="dg-v">'+esc(p.supplierName)+'</div></div>';
+  h+='<div><div class="dg-l">Date</div><div class="dg-v">'+fd(p.date||p.receivedAt)+'</div></div>';
+  h+='<div><div class="dg-l">Total Pieces</div><div class="dg-v">'+p.totalQty+' pcs</div></div>';
+  h+='<div><div class="dg-l">Status</div><div class="dg-v">'+(p.status==='barcode_done'?'Barcode Done':'Without Barcode')+'</div></div>';
+  h+='<div><div class="dg-l">🚚 Shop pe Gaye</div><div class="dg-v" style="color:var(--b600)">'+p.dispatched+' pcs</div></div>';
+  h+='<div><div class="dg-l">🏭 Godown Mein Baki</div><div class="dg-v" style="color:'+(r>0?'var(--b800)':'var(--b500)')+'">'+r+' pcs</div></div>';
+  if(p.receivedBy)h+='<div><div class="dg-l">Received By</div><div class="dg-v">'+esc(p.receivedBy)+'</div></div>';
+  if(p.barcodeBy)h+='<div><div class="dg-l">Barcode By</div><div class="dg-v">'+esc(p.barcodeBy)+'</div></div>';
+  if(p.items)h+='<div style="grid-column:1/-1"><div class="dg-l">Items</div><div class="dg-v">'+esc(p.items)+'</div></div>';
+  if(p.notes)h+='<div style="grid-column:1/-1"><div class="dg-l">Notes</div><div class="dg-v" style="color:var(--txL);font-weight:500">'+esc(p.notes)+'</div></div>';
+  h+='</div>';
+  if(p.dispatched>0){var pct=Math.round((p.dispatched/p.totalQty)*100);h+='<div style="margin-bottom:18px"><div class="qbar"><div class="qbar-track"><div class="qbar-fill" style="width:'+pct+'%"></div></div><div class="qbar-txt"><span>'+p.dispatched+'</span>/'+p.totalQty+' dispatched ('+pct+'%)</div></div></div>'}
+  h+=staffSummary(p);
+  h+='<div class="tl"><h4>📋 Activity Log</h4><div class="tl-tr"><div class="tl-ln"></div>';
+  p.log.forEach(function(l,i){
+    h+='<div class="tl-it"><div class="tl-dt '+(i===p.log.length-1?'now':'old')+'"></div><div class="tl-a">'+esc(l.action)+'</div>';
+    if(l.staff)h+='<div class="tl-staff">👤 '+esc(l.staff)+'</div>';
+    h+='<div class="tl-t">'+fd(l.time)+' at '+ft(l.time)+(l.note?' · '+esc(l.note):'')+'</div></div>';
+  });
+  h+='</div></div>';
+  h+='<div class="btn-grp">';
+  if(r>0){
+    if(p.status==='received')h+='<button class="btn btn-f" onclick="cMo(\'mView\');setTimeout(function(){openBc(\''+p.id+'\')},150)">✅ Barcode Done</button>';
+    if(p.status==='barcode_done')h+='<button class="btn btn-d" onclick="cMo(\'mView\');setTimeout(function(){openDsp(\''+p.id+'\')},150)">🚚 Dispatch to Shop</button>';
+  }
+  h+='<button class="btn btn-del" onclick="cMo(\'mView\');setTimeout(function(){askDel(\''+p.id+'\')},150)">🗑 Delete</button></div>';
+  document.getElementById('vBody').innerHTML=h;oMo('mView');
+}
+
+// ══════════ BARCODE ══════════
+function openBc(id){
+  var p=data.find(function(x){return x.id===id});if(!p)return;
+  bcId=id;
+  document.getElementById('bcInfo').innerHTML='<div style="font-size:15px;font-weight:800;color:var(--b800);margin-bottom:4px">Bill #'+esc(p.billNo)+'</div><div style="font-size:13px;color:var(--txL)">'+esc(p.supplierName)+' · '+p.totalQty+' pcs</div>';
+  fillStaffSelect('bcStaff');oMo('mBc');
+}
+
+function doBarcode(){
+  if(!bcId)return;
+  var staff=document.getElementById('bcStaff').value;
+  if(!staff)return toast('⚠️ Staff select karo — kisne barcoding ki?');
+  var p=data.find(function(x){return x.id===bcId});if(!p)return;
+  var now=new Date().toISOString();
+  var newLog=p.log.slice();
+  newLog.push({action:'Barcoding Completed',time:now,note:'All barcodes applied — Ready to dispatch',staff:staff});
+  fbUpdate(bcId,{status:'barcode_done',barcodeAt:now,barcodeBy:staff,log:newLog});
+  cAll();toast('✅ '+staff+' ne barcoding ki — Bill #'+p.billNo);
+  bcId=null;
+}
+
+// ══════════ DISPATCH ══════════
+function openDsp(id){
+  var p=data.find(function(x){return x.id===id});if(!p)return;
+  dspId=id;var r=rem(p);
+  document.getElementById('dspInfo').innerHTML='<div style="font-size:15px;font-weight:800;color:var(--b800);margin-bottom:4px">Bill #'+esc(p.billNo)+'</div><div style="font-size:13px;color:var(--txL)">'+esc(p.supplierName)+'</div><div style="font-size:13px;color:var(--txL);margin-top:4px">Total: '+p.totalQty+' pcs · Already dispatched: '+p.dispatched+' pcs</div>';
+  document.getElementById('dspAvail').innerHTML='Available to dispatch: <span>'+r+' pcs</span>';
+  fillStaffSelect('dspStaff');
+  var dq=document.getElementById('dspQty');dq.value='';dq.max=r;dq.placeholder='Max '+r+' pcs';
+  oMo('mDsp');
+}
+
+function doDispatch(){
+  if(!dspId)return;
+  var staff=document.getElementById('dspStaff').value;
+  if(!staff)return toast('⚠️ Staff select karo — kisne dispatch kiya?');
+  var p=data.find(function(x){return x.id===dspId});if(!p)return;
+  var r=rem(p),qty=parseInt(document.getElementById('dspQty').value);
+  if(!qty||qty<=0)return toast('⚠️ Pieces daalo kitne dispatch karne hain');
+  if(qty>r)return toast('⚠️ Sirf '+r+' pcs available hain');
+
+  var now=new Date().toISOString();
+  var newDisp=p.dispatched+qty;
+  var newDispatches=p.dispatches.slice();
+  newDispatches.push({qty:qty,by:staff,time:now});
+  var newLog=p.log.slice();
+  var newRem=p.totalQty-newDisp;
+  var logNote=qty+' pcs shop pe bheje';
+  logNote+=newRem>0?' · '+newRem+' pcs abhi godown mein':' · Sab pieces dispatch ho gaye!';
+  newLog.push({action:'Dispatched '+qty+' pcs to Shop',time:now,note:logNote,staff:staff});
+
+  fbUpdate(dspId,{dispatched:newDisp,dispatches:newDispatches,log:newLog});
+  cAll();
+  if(newRem===0)toast('🚚 '+staff+' ne sab '+p.totalQty+' pcs dispatch kiye!');
+  else toast('🚚 '+staff+' ne '+qty+' pcs dispatch kiye · '+newRem+' baki');
+  dspId=null;
+}
+
+// ══════════ DELETE ══════════
+function askDel(id){
+  var p=data.find(function(x){return x.id===id});if(!p)return;
+  pendingDel=id;
+  document.getElementById('cfTitle').textContent='⚠️ Delete Parcel';
+  document.getElementById('cfMsg').textContent='Kya aap Bill #'+p.billNo+' delete karna chahte ho? Ye undo nahi hoga.';
+  oMo('mConf');
+}
+
+function doDelete(){
+  if(!pendingDel)return;
+  var p=data.find(function(x){return x.id===pendingDel});
+  fbDelete(pendingDel);
+  cAll();toast('🗑 Bill #'+(p?p.billNo:'—')+' deleted');
+  pendingDel=null;
+}
+</script>
+</body>
+</html>
